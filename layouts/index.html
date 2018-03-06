@@ -11,24 +11,32 @@
             var tcnv;
             var canvasWidth=800, canvasHeight=400;
             var ctx;
-            var lastX, lastY, mouse_press=false;
+            var lastX, lastY, mouse_press=false, strokeStyle='red';
             var savedCanvas;
 
             var trajectory={};
+            var tempLight=[];
 
             function bodyInit() {
-                tcnv = document.getElementById("TrajectoryCanvas");
+                tcnv = document.getElementById('TrajectoryCanvas');
                 tcnv.setAttribute('width', canvasWidth);
                 tcnv.setAttribute('height', canvasHeight);
                 trajectory['width'] = canvasWidth;
                 trajectory['height'] = canvasHeight;
                 trajectory['trajectory'] = [];
-                ctx = tcnv.getContext("2d");
+                trajectory['lights'] = [];
+                ctx = tcnv.getContext('2d');
 
                 tcnv.addEventListener('mousedown', function (e) {
                     lastX = e.pageX - $(this).offset().left;
                     lastY = e.pageY - $(this).offset().top;
                     mouse_press = true;
+
+                    if (strokeStyle === 'green') {
+                        tempLight[0] = Math.floor(lastX);
+                        tempLight[1] = tcnv.height - Math.floor(lastY);
+                        tempLight[2] = 1;
+                    }
                 });
 
                 tcnv.addEventListener('mousemove', function (e) {
@@ -36,7 +44,13 @@
                     var toY = e.pageY - $(this).offset().top;
                     if (mouse_press) {
                         draw(lastX, toX, lastY, toY);
-                        trajectory['trajectory'].push(Math.floor(toX) + ',' + (tcnv.height - Math.floor(toY)));
+                        if (strokeStyle === 'red') {
+                            trajectory['trajectory'].push(Math.floor(toX) + ',' + (tcnv.height - Math.floor(toY)));
+                        } else if (strokeStyle === 'green') {
+                            tempLight[0] += Math.floor(lastX);
+                            tempLight[1] += tcnv.height - Math.floor(lastY);
+                            tempLight[2] += 1;
+                        }
                     }
                     lastX = toX;
                     lastY = toY;
@@ -46,6 +60,10 @@
                     lastX = null;
                     lastY = null;
                     mouse_press = false;
+
+                    if (strokeStyle === 'green') {
+                        trajectory['lights'].push(Math.floor(tempLight[0] / tempLight[2]) + ',' + Math.floor(tempLight[1] / tempLight[2]));
+                    }
                 });
 
                 tcnv.addEventListener('mouseout', function (e) {
@@ -57,20 +75,32 @@
                 tcnv.addEventListener('touchstart', function (e) {
                     if (e.touches) {
                         var touch = e.touches[0];
-                        lastX = touch.pageX - touch.target.offsetLeft;
-                        lastY = touch.pageY - touch.target.offsetTop;
+                        lastX = touch.pageX - $(this).offset().left;
+                        lastY = touch.pageY - $(this).offset().top;
                         window.blockMenuHeaderScroll = true;
                         e.preventDefault();
+
+                        if (strokeStyle === 'green') {
+                            tempLight[0] = Math.floor(lastX);
+                            tempLight[1] = tcnv.height - Math.floor(lastY);
+                            tempLight[2] = 1;
+                        }
                     }
                 });
 
                 tcnv.addEventListener('touchmove', function (e) {
                     if (e.touches) {
                         var touch = e.touches[0];
-                        var toX = touch.pageX - touch.target.offsetLeft;
-                        var toY = touch.pageY - touch.target.offsetTop;
+                        var toX = touch.pageX - $(this).offset().left;
+                        var toY = touch.pageY - $(this).offset().top;
                         draw(lastX, toX, lastY, toY);
-                        trajectory['trajectory'].push(Math.floor(toX) + ',' + (tcnv.height - Math.floor(toY)));
+                        if (strokeStyle === 'red') {
+                            trajectory['trajectory'].push(Math.floor(toX) + ',' + (tcnv.height - Math.floor(toY)));
+                        } else if (strokeStyle === 'green') {
+                            tempLight[0] += Math.floor(lastX);
+                            tempLight[1] += tcnv.height - Math.floor(lastY);
+                            tempLight[2] += 1;
+                        }
                         lastX = toX;
                         lastY = toY;
                     }
@@ -81,12 +111,16 @@
                     lastY = null;
                     window.blockMenuHeaderScroll = false;
                     $(this).trigger('submit');
+
+                    if (strokeStyle === 'green') {
+                        trajectory['lights'].push(Math.floor(tempLight[0] / tempLight[2]) + ',' + Math.floor(tempLight[1] / tempLight[2]));
+                    }
                 });
             }
 
             function draw(fromX, toX, fromY, toY) {
                 ctx.beginPath();
-                ctx.strokeStyle = 'red';
+                ctx.strokeStyle = strokeStyle;
                 ctx.lineWidth = '1';
                 ctx.lineJoin = 'round';
                 ctx.moveTo(fromX, fromY);
@@ -95,9 +129,21 @@
                 ctx.stroke();
             }
 
+            function selectColor(obj) {
+                switch (obj.id) {
+                    case 'red':
+                        strokeStyle = 'red';
+                        break;
+                    case 'green':
+                        strokeStyle = 'green';
+                        break;
+                }
+            }
+
             function clearCanvas() {
                 ctx.clearRect(0, 0, tcnv.width, tcnv.height);
                 trajectory['trajectory'] = [];
+                trajectory['lights'] = [];
             }
 
             function saveCanvas() {
@@ -108,7 +154,7 @@
             }
 
             function downloadTrajectory() {
-                var trajectoryJson = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trajectory));
+                var trajectoryJson = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(trajectory));
 
                 var downloadButton = document.getElementById('download-trajectory');
                 downloadButton.setAttribute('href', trajectoryJson);
@@ -127,16 +173,30 @@
     <body onload="bodyInit()">
         <h1 class="text-center">Warble Demo</h1>
 
-        <div class="container text-center">
+        <div class="container-fluid text-center">
             <p>Draw your trajectory here</p>
-            <canvas id="TrajectoryCanvas" style="border: 2px solid;"></canvas>
-        </div>
 
-        <div class="container text-center">
-            <a id="download-trajectory-image" download="trajectory.png"><button onclick="saveCanvas()" style="margin: 10px 5px 10px 5px">Save Image</button></a>
-            <a id="download-trajectory" download="trajectory.json"><button onclick="downloadTrajectory()" style="margin: 10px 5px 10px 5px">Download JSON</button></a>
-            <button onclick="saveTrajectory()" style="margin: 10px 5px 10px 5px">Save Trajectory</button>
-            <button onclick="clearCanvas()" style="margin: 10px 5px 10px 5px">Clear</button>
+            <div class="row">
+                <div class="col-sm-10">
+                    <canvas id="TrajectoryCanvas" style="border: 2px solid;"></canvas>
+                    <div>
+                        <a id="download-trajectory-image" download="trajectory.png"><button onclick="saveCanvas()" style="margin: 10px 5px 10px 5px">Save Image</button></a>
+                        <a id="download-trajectory" download="trajectory.json"><button onclick="downloadTrajectory()" style="margin: 10px 5px 10px 5px">Download JSON</button></a>
+                        <button onclick="saveTrajectory()" style="margin: 10px 5px 10px 5px">Save Trajectory</button>
+                        <button onclick="clearCanvas()" style="margin: 10px 5px 10px 5px">Clear</button>
+                    </div>
+                </div>
+                <div class="col-sm-2 text-left">
+                    <div>
+                        <div id="green" onclick="selectColor(this)" style="width: 40px; height: 40px; background-color: green; display: inline-block"></div>
+                        <div style="display: inline-block;"><span style="vertical-align: middle;">light</span></div>
+                    </div>
+                    <div>
+                        <div id="red" onclick="selectColor(this)" style="width: 40px; height: 40px; background-color: red; display: inline-block"></div>
+                        <div style="display: inline-block;"><span style="vertical-align: middle;">path</span></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </body>
 </html>
