@@ -16,7 +16,6 @@
 
 # [START imports]
 import os
-import urllib
 import json
 import logging
 
@@ -30,6 +29,7 @@ JINJA_ENVIRONMENT = jinja2.Environment(
 # [END imports]
 
 trajectory = {}
+currentLocation = ""
 
 
 # [START main_page]
@@ -57,10 +57,25 @@ class LoadTrajectory(webapp2.RequestHandler):
         self.response.write(json.dumps(trajectory))
 
 
+class SaveCurrentLocation(webapp2.RequestHandler):
+    def post(self):
+        global currentLocation
+        currentLocation = self.request.body.strip("\"")
+        logging.info(self.request.body)
+
+
+class LoadCurrentLocation(webapp2.RequestHandler):
+    def get(self):
+        global currentLocation
+        self.response.write(currentLocation)
+
+
 # [START app]
 app = webapp2.WSGIApplication([
     ('/', MainPage),
-    ('/save', SaveTrajectory),
-    ('/load', LoadTrajectory),
+    ('/saveTrajectory', SaveTrajectory),
+    ('/loadTrajectory', LoadTrajectory),
+    ('/saveCurrentLocation', SaveCurrentLocation),
+    ('/loadCurrentLocation', LoadCurrentLocation),
 ], debug=True)
 # [END app]

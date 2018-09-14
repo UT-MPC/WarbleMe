@@ -14,6 +14,9 @@
             var lastX, lastY, mouse_press=false, strokeStyle='red';
             var savedCanvas;
 
+            var currentLocationLastX, currentLocationLastY;
+            var currentLocationTimer;
+
             var trajectory={};
             var tempLight=[];
 
@@ -118,9 +121,13 @@
                 });
             }
 
-            function draw(fromX, toX, fromY, toY) {
+            function draw(fromX, toX, fromY, toY, color) {
                 ctx.beginPath();
-                ctx.strokeStyle = strokeStyle;
+                if (color != null) {
+                    ctx.strokeStyle = color;
+                } else {
+                    ctx.strokeStyle = strokeStyle;
+                }
                 ctx.lineWidth = '1';
                 ctx.lineJoin = 'round';
                 ctx.moveTo(fromX, fromY);
@@ -162,9 +169,41 @@
 
             function saveTrajectory() {
                 var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/save');
+                xhr.open('POST', '/saveTrajectory');
                 xhr.setRequestHeader('Content-type', 'application/json');
                 xhr.send(JSON.stringify(trajectory));
+            }
+
+            function updateCurrentLocation() {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', '/loadCurrentLocation');
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === XMLHttpRequest.DONE) {
+                        var currentLocationString = xhr.responseText;
+                        var currentLocation = currentLocationString.replace("(", "").replace(")", "").replace(" ", "").split(',');
+
+                        var currentLocationX = parseInt(currentLocation[0]);
+                        var currentLocationY = tcnv.height - parseInt(currentLocation[1]);
+
+                        if (currentLocationLastX != null && currentLocationLastY != null) {
+                            draw(currentLocationLastX, currentLocationX, currentLocationLastY, currentLocationY, "grey");
+                            console.log(currentLocationLastX + ',' + currentLocationX + ',' + currentLocationLastY + ',' + currentLocationY);
+                        }
+                        currentLocationLastX = currentLocationX;
+                        currentLocationLastY = currentLocationY;
+                    }
+                };
+                xhr.send();
+            }
+
+            function enableUpdateCurrentInterval() {
+                currentLocationTimer = setInterval(updateCurrentLocation, 2000);
+            }
+
+            function disableUpdateCurrentInterval() {
+                clearInterval(currentLocationTimer);
+                currentLocationLastX = null;
+                currentLocationLastY = null;
             }
 
         </script>
@@ -184,6 +223,10 @@
                         <a id="download-trajectory" download="trajectory.json"><button onclick="downloadTrajectory()" style="margin: 10px 5px 10px 5px">Download JSON</button></a>
                         <button onclick="saveTrajectory()" style="margin: 10px 5px 10px 5px">Save Trajectory</button>
                         <button onclick="clearCanvas()" style="margin: 10px 5px 10px 5px">Clear</button>
+                    </div>
+                    <div>
+                        <button onclick="enableUpdateCurrentInterval()" style="margin: 10px 5px 10px 5px">Enable Tracking</button>
+                        <button onclick="disableUpdateCurrentInterval()" style="margin: 10px 5px 10px 5px">Disable Tracking</button>
                     </div>
                 </div>
                 <div class="col-sm-2 text-left">
